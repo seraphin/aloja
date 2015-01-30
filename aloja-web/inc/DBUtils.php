@@ -90,16 +90,15 @@ class DBUtils
 
     public static function getFilterExecs()
     {
-        return "";
-
         return "
-AND bench_type = 'HiBench'
 AND bench not like 'prep_%'
 AND exe_time between 200 and 15000
-AND id_exec IN (select distinct (id_exec) from JOB_status where id_exec is not null)
-AND id_exec IN (select distinct (id_exec) from SAR_cpu where id_exec is not null)
 ";
+
 //AND valid = TRUE
+//AND bench_type = 'HiBench'
+//AND id_exec IN (select distinct (id_exec) from JOB_status where id_exec is not null)
+//AND id_exec IN (select distinct (id_exec) from SAR_cpu where id_exec is not null)
     }
 
     public function get_execs($filter_execs = null)
