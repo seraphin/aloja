@@ -90,6 +90,8 @@ class DBUtils
 
     public static function getFilterExecs()
     {
+        return "";
+
         return "
 AND bench_type = 'HiBench'
 AND bench not like 'prep_%'
