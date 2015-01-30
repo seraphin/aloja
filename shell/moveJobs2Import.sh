@@ -19,7 +19,7 @@ folder_already_DONE() {
 }
 
 #main loop
-logger "Starting..."
+logger "Starting... $SHARE_DIR/jobs_*"
 
 for jobs_folder in $SHARE_DIR/jobs_* ; do
 
