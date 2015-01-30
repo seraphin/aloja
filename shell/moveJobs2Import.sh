@@ -2,10 +2,10 @@
 #simple script to check if folder has been imported before to move it or not
 
 #if no param is passed, then we need to source the main file
-if [ ! "$1" ] ; then
+#if [ ! "$1" ] ; then
   CUR_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
   source "$CUR_DIR/common/include_process_jobs.sh"
-fi
+#fi
 
 #$1 folder to look
 folder_already_DONE() {
