@@ -12,7 +12,7 @@ while true ; do
 
   logger "\nImporting jobs\n\n"
   cd "$IMPORT_DIR"
-  bash $CUR_DIR/aloja-import2db.sh
+  #bash $CUR_DIR/aloja-import2db.sh
 
   logger "\nRestarting MySQL\n\n"
   sudo /etc/init.d/mysql restart
