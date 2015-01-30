@@ -14,6 +14,6 @@ FAIL_DIR="$IMPORT_DIR/FAIL"
 
 mkdir -p "$IMPORT_DIR" "$DONE_DIR" "$FAIL_DIR"
 
-SHARE_DIR="~/share"
+SHARE_DIR="/home/pristine/share"
 
 logger "DEBUG: IMPORT_DIR=$IMPORT_DIR"
