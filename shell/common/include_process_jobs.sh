@@ -9,7 +9,7 @@ else
   IMPORT_DIR="$CUR_DIR/../import-jobs"
 fi
 
-DONE_DIR="$IMPORT_DIR/DONE"
+DONE_DIR="/scratch/attached/1/DONE"
 FAIL_DIR="$IMPORT_DIR/FAIL"
 
 mkdir -p "$IMPORT_DIR" "$DONE_DIR" "$FAIL_DIR"
