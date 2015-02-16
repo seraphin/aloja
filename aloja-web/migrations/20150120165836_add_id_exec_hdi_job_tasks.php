@@ -2,7 +2,7 @@
 
 use Phinx\Migration\AbstractMigration;
 
-class AddHadoopVersionExecsTable extends AbstractMigration
+class AddIdExecHdiJobTasks extends AbstractMigration
 {
     /**
      * Change Method.
@@ -22,7 +22,7 @@ class AddHadoopVersionExecsTable extends AbstractMigration
      */
     public function up()
     {
-    	$this->execute("ALTER TABLE execs ADD COLUMN hadoop_version varchar(128) default NULL");
+    	$this->execute("ALTER TABLE HDI_JOB_tasks ADD COLUMN id_exec INT(11)");
     }
 
     /**
@@ -30,6 +30,6 @@ class AddHadoopVersionExecsTable extends AbstractMigration
      */
     public function down()
     {
-    	$this->execute("ALTER TABLE execs DROP COLUMN hadoop_version");
+    	$this->execute("ALTER TABLE HDI_JOB_tasks DROP COLUMN id_exec");
     }
 }
