@@ -10,6 +10,7 @@ source "$CONF_DIR/provider_functions.sh"
 [ -z "$testKey" ] && { logger "testKey not set! Exiting"; exit 1; }
 
 #global variables
+declare -A requireRootFirst
 
 #####################################################################################
 # Start functions
@@ -30,7 +31,7 @@ vm_create_node() {
 
   if [ "$vmType" != 'windows' ] ; then
 
-    requireRootFirst="true" #for some providers that need root user first it is dissabled further on
+    requireRootFirst["$vm_name"]="true" #for some providers that need root user first it is dissabled further on
 
     #check if machine has been already created or creates it
     vm_create_connect "$vm_name"
@@ -79,7 +80,7 @@ vm_create_connect() {
 #requires $vm_name and $type to be set
 vm_provision() {
   vm_initial_bootstrap
-  requireRootFirst="" #disable root/admin user from this part on
+  requireRootFirst["$vm_name"]="" #disable root/admin user from this part on
 
   vm_set_ssh
   vm_install_base_packages
@@ -252,9 +253,11 @@ set_shh_proxy() {
 #interactive SSH $1 use password
 vm_connect() {
 
+  echo "$(get_ssh_user)"
+
   set_shh_proxy
 
-  local sshOptions="-o StrictHostKeyChecking=no -o StrictHostKeyChecking=no -o ControlMaster=auto -o ControlPath=~/.ssh/%r@%h-%p -o ControlPersist=600 "
+  local sshOptions="-o StrictHostKeyChecking=no -o ControlMaster=auto -o ControlPath=~/.ssh/%r@%h-%p -o ControlPersist=600 "
 
   #Use SSH keys
   if [ -z "$1" ] ; then
@@ -420,7 +423,7 @@ get_share_location() {
 #    local fs_mount="$userAloja@al-1001.cloudapp.net:$homePrefixAloja/$userAloja/share/ $homePrefixAloja/$userAloja/share fuse.sshfs _netdev,users,IdentityFile=$homePrefixAloja/$userAloja/.ssh/id_rsa,allow_other,nonempty,StrictHostKeyChecking=no,Port=222,auto_cache,reconnect,workaround=all 0 0"
 #  fi
 
-  local fs_mount="$fileServerFullPathAloja $homePrefixAloja/$userAloja/share fuse.sshfs _netdev,users,IdentityFile=$homePrefixAloja/$userAloja/.ssh/id_rsa,allow_other,nonempty,StrictHostKeyChecking=no,auto_cache,reconnect,workaround=all 0 0"
+  local fs_mount="$fileServerFullPathAloja $homePrefixAloja/$userAloja/share fuse.sshfs _netdev,users,IdentityFile=$homePrefixAloja/$userAloja/.ssh/id_rsa,allow_other,nonempty,StrictHostKeyChecking=no,auto_cache,reconnect,workaround=all,Port=$fileServerPortAloja 0 0"
 
   echo -e "$fs_mount"
 }
@@ -469,7 +472,6 @@ get_mount_disks() {
     sudo mkdir -p /scratch/attached/{1..$attachedVolumes} /scratch/local;
     sudo chown -R $userAloja: /scratch;
     sudo mount -a;
-    sudo chown -R $userAloja /scratch
   "
   echo -e "$create_string"
 }
@@ -711,9 +713,14 @@ vm_set_dot_files() {
   if check_bootstraped "$bootstrap_file" ""; then
     logger "Setting up $function_name for VM $vm_name "
 
-    vm_update_template "~/.bashrc" "export HISTSIZE=50000
+    vm_update_template "~/.bashrc" "
+export HISTSIZE=50000
 alias a='dsh -g a -M -c'
 alias s='dsh -g s -M -c'" ""
+
+    vm_update_template "~/.screenrc" "
+defscrollback 99999
+startup_message off" ""
 
     test_action="$(vm_execute " [ \"\$\(grep 'dsh -g' ~/.bashrc\)\" ] && echo '$testKey'")"
     if [ "$test_action" == "$testKey" ] ; then
@@ -1000,7 +1007,8 @@ vm_make_fs() {
 
     if [ -z "$test_action" ] ; then
       logger " Linking $homePrefixAloja/$userAloja/share"
-      vm_execute "sudo chown -R ${userAloja} /scratch;
+#sudo chown -R ${userAloja} /scratch;
+      vm_execute "
 [ -d $homePrefixAloja/$userAloja/share ] && [ ! -L $homePrefixAloja/$userAloja/share ] && mv $homePrefixAloja/$userAloja/share ~/share_backup && echo 'WARNING: share dir moved to ~/share_backup';
 ln -sf $share_disk_path $homePrefixAloja/$userAloja/share;
 touch $homePrefixAloja/$userAloja/share/safe_store;
@@ -1014,8 +1022,7 @@ touch $homePrefixAloja/$userAloja/share/safe_store;
     vm_execute "mkdir -p $homePrefixAloja/$userAloja/share; touch $homePrefixAloja/$userAloja/share/safe_store"
   fi
 
-  vm_rsync "../shell" "$homePrefixAloja/$userAloja/share"
-  vm_rsync "../aloja-deploy" "$homePrefixAloja/$userAloja/share"
+  vm_rsync "../shell ../aloja-deploy ../aloja-tools" "$homePrefixAloja/$userAloja/share"
 
   logger "Checking if aplic exits to redownload or rsync for changes"
   test_action="$(vm_execute "ls $homePrefixAloja/$userAloja/share/aplic/aplic_version && echo '$testKey'")"

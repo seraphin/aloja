@@ -23,11 +23,14 @@ class DefaultController extends AbstractController
             'comp' => 'Comp',
             'blk_size' => 'Blk size',
             'id_cluster' => 'Cluster',
+    		'datanodes' => 'Datanodes',
     		'histogram' => 'Histogram',
            // 'files' => 'Files',
             'prv' => 'PARAVER',
             //'version' => 'Hadoop v.',
             'init_time' => 'End time',
+    		'hadoop_version' => 'H Version',
+            'bench_type' => 'Bench',
         );
 
     public function indexAction()
@@ -336,9 +339,11 @@ class DefaultController extends AbstractController
         foreach ($rows as $row) {
 
             $exec = substr($row['exec'], 21);
-
+			
             if (strpos($exec, '_az') > 0) {
                 $exec = "AZURE " . $exec;
+            } else if (strpos($row['exec'], 'alojahdi') > 0) {
+            	$exec = "HDINSIGHT " . substr($row['exec'],0,26);
             } else {
                 $exec = "LOCAL " . $exec;
             }
@@ -427,23 +432,36 @@ class DefaultController extends AbstractController
             }
 
             if ($hosts == 'Slaves') {
-                $selected_hosts = array(
-                    'minerva-1002', 'minerva-1003', 'minerva-1004',
-                    'al-1002', 'al-1003', 'al-1004',
-                    'minerva-2','minerva-3','minerva-4',
-                    'minerva-6','minerva-7','minerva-8',
-                    'minerva-7', 'minerva-8','minerva-9','minerva-10','minerva-11','minerva-12','minerva-13','minerva-14','minerva-15','minerva-16','minerva-17','minerva-18','minerva-19','minerva-20',
-                    'rl-06-01', 'rl-06-02', 'rl-06-03', 'rl-06-04', 'rl-06-05', 'rl-06-06', 'rl-06-07', 'rl-06-08',
-                );
+            	$selectedHosts = $dbUtil->get_rows("SELECT h.host_name from execs e inner join hosts h where e.id_exec IN (".implode(", ", $execs).") AND h.id_cluster = e.id_cluster AND h.role='slave'");
+            	
+            	$selected_hosts = array();
+            	foreach($selectedHosts as $host) {
+            		array_push($selected_hosts, $host['host_name']);
+            	}
+//                 $selected_hosts = array(
+//                     'minerva-1002', 'minerva-1003', 'minerva-1004',
+//                     'al-1002', 'al-1003', 'al-1004',
+//                     'minerva-2','minerva-3','minerva-4',
+//                     'minerva-6','minerva-7','minerva-8',
+//                     'minerva-7', 'minerva-8','minerva-9','minerva-10','minerva-11','minerva-12','minerva-13','minerva-14','minerva-15','minerva-16','minerva-17','minerva-18','minerva-19','minerva-20',
+//                     'rl-06-01', 'rl-06-02', 'rl-06-03', 'rl-06-04', 'rl-06-05', 'rl-06-06', 'rl-06-07', 'rl-06-08',
+//                 );
             } elseif ($hosts == 'Master') {
-                $selected_hosts = array(
-                    'minerva-1001',
-                    'al-1001',
-                    'minerva-1',
-                    'minerva-6',
-                    'minerva-5',
-                    'rl-06-00',
-                );
+            	$selectedHosts = $dbUtil->get_rows("SELECT h.host_name from execs e inner join hosts h where e.id_exec IN (".implode(", ", $execs).") AND h.id_cluster = e.id_cluster AND h.role='master' AND h.host_name != ''");
+            	 
+            	$selected_hosts = array();
+            	foreach($selectedHosts as $host) {
+            		array_push($selected_hosts, $host['host_name']);
+            	}
+            	
+//                 $selected_hosts = array(
+//                     'minerva-1001',
+//                     'al-1001',
+//                     'minerva-1',
+//                     'minerva-6',
+//                     'minerva-5',
+//                     'rl-06-00',
+//                 );
             } else {
                 $selected_hosts = array($hosts);
             }
@@ -1017,7 +1035,7 @@ class DefaultController extends AbstractController
     {
         try {
         	$db = $this->container->getDBUtils();
-        	$benchOptions = $db->get_rows("SELECT DISTINCT bench FROM execs JOIN JOB_details USING (id_exec) WHERE valid = TRUE");
+        	$benchOptions = $db->get_rows("SELECT DISTINCT bench FROM execs JOIN JOB_details USING (id_exec) WHERE valid = 1");
         	
         	$discreteOptions = array();
         	$discreteOptions['bench'][] = 'All';
@@ -1086,8 +1104,8 @@ class DefaultController extends AbstractController
             } elseif ($type == 'TASKS') {
                 $query = "SELECT e.bench, exe_time, j.JOBNAME, c.* FROM JOB_tasks c
                 JOIN JOB_details j USING(id_exec, JOBID) $join ";
-                $taskStatusOptions = $db->get_rows("SELECT DISTINCT TASK_STATUS FROM JOB_tasks JOIN execs USING (id_exec) WHERE valid = TRUE");
-                $typeOptions = $db->get_rows("SELECT DISTINCT TASK_TYPE FROM JOB_tasks JOIN execs USING (id_exec) WHERE valid = TRUE");
+                $taskStatusOptions = $db->get_rows("SELECT DISTINCT TASK_STATUS FROM JOB_tasks JOIN execs USING (id_exec) WHERE valid = 1");
+                $typeOptions = $db->get_rows("SELECT DISTINCT TASK_TYPE FROM JOB_tasks JOIN execs USING (id_exec) WHERE valid = 1");
 
                 $discreteOptions['TASK_STATUS'][] = 'All';
                 $discreteOptions['TASK_TYPE'][] = 'All';
@@ -1205,6 +1223,24 @@ class DefaultController extends AbstractController
     				  'idExec' => $idExec
     			));
     }
+    
+    public function histogramHDIAction()
+    {
+    	$db = $this->container->getDBUtils();
+    	$idExec = '';
+    	try {
+    		$idExec = Utils::get_GET_string('id_exec');
+    		if(!$idExec)
+    			throw new \Exception("No execution selected!");
+    	} catch (\Exception $e) {
+    		$this->container->getTwig()->addGlobal('message',$e->getMessage()."\n");
+    	}
+    	 
+    	echo $this->container->getTwig()->render('histogram/histogramhdi.html.twig',
+    			array('selected' => 'Histogram',
+    					'idExec' => $idExec
+    			));
+    }
 
     public function bestConfigAction() {
 		$db = $this->container->getDBUtils ();
@@ -1242,9 +1278,9 @@ class DefaultController extends AbstractController
 			
 			// get the result rows
 			$query = "SELECT e.*,
-    		(exe_time/3600)*(cost_hour) cost
+    		(exe_time/3600)*(cost_hour) cost, c.name as clustername
     		from execs e
-    		join clusters USING (id_cluster)
+    		join clusters c USING (id_cluster)
     		WHERE 1 $filter_execs $where_configs
     		ORDER BY $order_type ASC;";
 			
@@ -1259,7 +1295,8 @@ class DefaultController extends AbstractController
 				$bestexec = $rows[0];
 				$conf = $bestexec['exec'];
 				$parameters = explode ( '_', $conf );
-				$cluster =  explode ( '/', $parameters [count ( $parameters ) - 1] )[0]; //(explode ( '/', $parameters [count ( $parameters ) - 1] )[0] == 'az') ? 'Azure' : 'Local';
+				//$cluster =  explode ( '/', $parameters [count ( $parameters ) - 1] )[0]; //(explode ( '/', $parameters [count ( $parameters ) - 1] )[0] == 'az') ? 'Azure' : 'Local';
+				$cluster=$rows[0]['clustername'];
 				Utils::makeExecInfoBeauty($bestexec);
 			}
 		} catch ( \Exception $e ) {
@@ -1389,7 +1426,7 @@ class DefaultController extends AbstractController
 				if($paramEval == 'comp')
 					$row[$paramEval] = Utils::getCompressionName($row['comp']);
 				else if($paramEval == 'id_cluster') {
-                    $row[$paramEval] = Utils::getClusterName($row[$paramEval]);
+                    $row[$paramEval] = Utils::getClusterName($row[$paramEval],$db);
 				} else if($paramEval == 'net')
 					$row[$paramEval] = Utils::getNetworkName($row['net']);
 				else if($paramEval == 'disk')
@@ -1433,7 +1470,7 @@ class DefaultController extends AbstractController
 	{
 		echo $this->container->getTwig()->render('publications/publications.html.twig', array(
 				'selected' => 'Publications',
-				'title' => 'ALOJA Publications'));
+				'title' => 'ALOJA Publications and Slides'));
 	}
 	
 	public function teamAction()
@@ -1514,5 +1551,191 @@ class DefaultController extends AbstractController
                 'show_filter_benchs' => false,
             )
         );
+    }
+    
+    public function hdp2CountersAction()
+    {
+    	try {
+    		$db = $this->container->getDBUtils();
+    		$benchOptions = $db->get_rows("SELECT DISTINCT bench FROM execs JOIN HDI_JOB_details USING (id_exec) WHERE valid = 1");
+    		 
+    		$discreteOptions = array();
+    		$discreteOptions['bench'][] = 'All';
+    		foreach($benchOptions as $option) {
+    			$discreteOptions['bench'][] = array_shift($option);
+    		}
+    		 
+    		$dbUtil = $this->container->getDBUtils();
+    		$message = null;
+    
+    		//check the URL
+    		$execs = Utils::get_GET_execs();
+    
+    		if (Utils::get_GET_string('type')) {
+    			$type = Utils::get_GET_string('type');
+    		} else {
+    			$type = 'SUMMARY';
+    		}
+    
+    		$join = "JOIN execs e using (id_exec) WHERE job_name NOT IN
+        ('TeraGen', 'random-text-writer', 'mahout-examples-0.7-job.jar', 'Create pagerank nodes', 'Create pagerank links')".
+            ($execs ? ' AND id_exec IN ('.join(',', $execs).') ':''). " LIMIT 10000";
+    
+    		$query = "";
+    		if ($type == 'SUMMARY') {
+    			$query = "SELECT e.bench, exe_time, c.id_exec, c.JOB_ID, c.job_name, c.SUBMIT_TIME, c.LAUNCH_TIME,
+    			c.FINISH_TIME, c.TOTAL_MAPS, c.FAILED_MAPS, c.FINISHED_MAPS, c.TOTAL_REDUCES, c.FAILED_REDUCES, c.job_name as CHARTS
+    			FROM HDI_JOB_details c $join";
+    		} else if ($type == "MAP") {
+    			$query = "SELECT e.bench, exe_time, c.id_exec, JOB_ID, job_name, c.SUBMIT_TIME, c.LAUNCH_TIME,
+    			c.FINISH_TIME, c.TOTAL_MAPS, c.FAILED_MAPS, c.FINISHED_MAPS, `TOTAL_LAUNCHED_MAPS`,
+    			`RACK_LOCAL_MAPS`,
+    			`SPILLED_RECORDS`,
+    			`MAP_INPUT_RECORDS`,
+    			`MAP_OUTPUT_RECORDS`,
+    			`MAP_OUTPUT_BYTES`,
+    			`MAP_OUTPUT_MATERIALIZED_BYTES`
+    			FROM HDI_JOB_details c $join";
+    		} else if ($type == 'REDUCE') {
+    			$query = "SELECT e.bench, exe_time, c.id_exec, c.JOB_ID, c.job_name, c.SUBMIT_TIME, c.LAUNCH_TIME,
+    			c.FINISH_TIME, c.TOTAL_REDUCES, c.FAILED_REDUCES,
+    			`TOTAL_LAUNCHED_REDUCES`,
+    			`REDUCE_INPUT_GROUPS`,
+    			`REDUCE_INPUT_RECORDS`,
+    			`REDUCE_OUTPUT_RECORDS`,
+    			`REDUCE_SHUFFLE_BYTES`,
+    			`COMBINE_INPUT_RECORDS`,
+    			`COMBINE_OUTPUT_RECORDS`
+    			FROM HDI_JOB_details c $join";
+    		} else if ($type == 'FILE-IO') {
+    			$query = "SELECT e.bench, exe_time, c.id_exec, c.JOB_ID, c.job_name, c.SUBMIT_TIME, c.LAUNCH_TIME,
+    			c.FINISH_TIME,
+    			`SLOTS_MILLIS_MAPS`,
+    			`SLOTS_MILLIS_REDUCES`,
+    			`SPLIT_RAW_BYTES`,
+    			`FILE_BYTES_WRITTEN`,
+    			`FILE_BYTES_READ`,
+    			`WASB_BYTES_WRITTEN`,
+    			`WASB_BYTES_READ`,
+    			`BYTES_READ`,
+    			`BYTES_WRITTEN`
+    			FROM HDI_JOB_details c $join";
+    		} else if ($type == 'DETAIL') {
+    			$query = "SELECT e.bench, exe_time, c.* FROM JOB_details c $join";
+    		} else if ($type == "TASKS") {
+    			$query = "SELECT e.bench, exe_time, j.job_name, c.* FROM HDI_JOB_tasks c
+    			JOIN HDI_JOB_details j USING(id_exec,JOB_ID) $join ";
+
+    			$taskStatusOptions = $db->get_rows("SELECT DISTINCT TASK_STATUS FROM HDI_JOB_tasks JOIN execs USING (id_exec) WHERE valid = 1");
+    			$typeOptions = $db->get_rows("SELECT DISTINCT TASK_TYPE FROM HDI_JOB_tasks JOIN execs USING (id_exec) WHERE valid = 1");
+    
+    			$discreteOptions['TASK_STATUS'][] = 'All';
+    			$discreteOptions['TASK_TYPE'][] = 'All';
+    			foreach($taskStatusOptions as $option) {
+    				$discreteOptions['TASK_STATUS'][] = array_shift($option);
+    			}
+    			foreach($typeOptions as $option) {
+    				$discreteOptions['TASK_TYPE'][] = array_shift($option);
+    			}
+    		} else {
+    			throw new \Exception('Unknown type!');
+    		}
+    
+    		$exec_rows = $dbUtil->get_rows($query);
+
+    		if (count($exec_rows) > 0) {
+    
+    			$show_in_result_counters = array(
+    					'id_exec'   => 'ID',
+    					'JOB_ID'     => 'JOBID',
+    					'bench'     => 'Bench',
+    					'job_name'   => 'JOBNAME',
+    			);
+    
+    			$show_in_result_counters = Utils::generate_show($show_in_result_counters, $exec_rows, 4);
+    		}
+    	} catch (\Exception $e) {
+    		$this->container->getTwig()->addGlobal('message',$e->getMessage()."\n");
+    	}
+
+    	echo $this->container->getTwig()->render('counters/hdp2counters.html.twig',
+    			array('selected' => 'Hadoop 2 Job Counters',
+    					'theaders' => $show_in_result_counters,
+    					//'table_fields' => $table_fields,
+    					'message' => $message,
+    					'title' => 'Hadoop Jobs and Tasks Execution Counters',
+    					'type' => $type,
+    					'execs' => $execs,
+    					'execsParam' => (isset($_GET['execs'])) ? $_GET['execs'] : '',
+    					'discreteOptions' => $discreteOptions
+    					//'execs' => (isset($execs) && $execs ) ? make_execs($execs) : 'random=1'
+    			));
+    }
+    
+    public function clusterCostEffectivenessAction()
+    {
+    	$db = $this->container->getDBUtils ();
+    	$data = array();
+    	
+    	$filter_execs = DBUtils::getFilterExecs();
+    	$configurations = array();
+    	$where_configs = '';
+    	$concat_config = "";
+    	
+    	// $benchs = $dbUtils->read_params('benchs',$where_configs,$configurations,$concat_config);
+    	$benchs = Utils::read_params ( 'benchs', $where_configs, $configurations, $concat_config, false ); 	 
+    	$nets = Utils::read_params('nets', $where_configs, $configurations, $concat_config);
+    	$disks = Utils::read_params('disks', $where_configs, $configurations, $concat_config);
+    	$blk_sizes = Utils::read_params('blk_sizes', $where_configs, $configurations, $concat_config);
+    	$comps = Utils::read_params('comps', $where_configs, $configurations, $concat_config);
+    	$id_clusters = Utils::read_params('id_clusters', $where_configs, $configurations, $concat_config);
+    	$mapss = Utils::read_params('mapss', $where_configs, $configurations, $concat_config);
+    	$replications = Utils::read_params('replications', $where_configs, $configurations, $concat_config);
+    	$iosfs = Utils::read_params('iosfs', $where_configs, $configurations, $concat_config);
+    	$iofilebufs = Utils::read_params('iofilebufs', $where_configs, $configurations, $concat_config);
+    	
+    	if(isset($_GET['benchs']))
+    		$_GET['benchs'] = $_GET['benchs'][0];
+    	
+   		if (isset($_GET['benchs']) and strlen($_GET['benchs']) > 0) {
+          $bench = $_GET['benchs'];
+          $bench_where = " AND bench = '$bench'";
+        } else {
+          $bench = 'terasort';
+          $bench_where = " AND bench = '$bench'";
+        }
+    	
+    	$query = "SELECT e.*,
+	    	(exe_time/3600)*(cost_hour) cost, c.name as clustername, c.datanodes
+    		from execs e
+    		join clusters c USING (id_cluster)
+    		WHERE 1 $bench_where $filter_execs $where_configs GROUP BY c.name HAVING COUNT(DISTINCT c.name)=1 ORDER BY exe_time,cost ASC;";
+    	
+    	try {
+    		$rows = $db->get_rows($query);
+    		foreach($rows as $row) {
+    			$set = array(round($row['exe_time'],0), round($row['cost'],0), round($row['exe_time']*$row['cost'],0));
+    			array_push($data, array('data' => array($set), 'name' => $row['clustername']));
+    		}
+    	} catch (\Exception $e) {
+    		$this->container->getTwig()->addGlobal('message',$e->getMessage()."\n");
+    	}
+    	
+    	echo $this->container->getTwig()->render('clustercosteffectiveness/clustercosteffectiveness.html.twig', array(
+    			'selected' => 'Cost-Effectiveness of clusters',
+    			'series' => json_encode($data),
+    			'benchs' => $bench,
+    			'nets' => $nets,
+    			'disks' => $disks,
+    			'blk_sizes' => $blk_sizes,
+    			'comps' => $comps,
+    			'id_clusters' => $id_clusters,
+    			'mapss' => $mapss,
+    			'replications' => $replications,
+    			'iosfs' => $iosfs,
+    			'iofilebufs' => $iofilebufs,
+    			'select_multiple_benchs' => false,
+    			'options' => Utils::getFilterOptions($db)
+    		));
     }
 }

@@ -8,7 +8,7 @@ source "$CUR_DIR_TMP/on-premise.sh"
 get_ssh_user() {
 
   #check if we can change from root user
-  if [ "$requireRootFirst" ] ; then
+  if [ ! -z "${requireRootFirst[$vm_name]}" ] ; then
     #"WARNINIG: connecting as root"
     echo "npoggi"
   else
@@ -29,10 +29,11 @@ sudo echo -n '$userAloja:$passwordAloja' |sudo chpasswd;
 sudo adduser $userAloja sudo;
 sudo adduser $userAloja adm;
 
+
 sudo bash -c \"echo '%sudo ALL=NOPASSWD:ALL' >> /etc/sudoers\";
 
 sudo mkdir -p $homePrefixAloja/$userAloja/.ssh;
-sudo bash -c \"echo '${insecureKey}' >> sudo $homePrefixAloja/$userAloja/.ssh/authorized_keys\";
+sudo bash -c \"echo '${insecureKey}' >> $homePrefixAloja/$userAloja/.ssh/authorized_keys\";
 sudo chown -R $userAloja: $homePrefixAloja/$userAloja/.ssh;
 sudo cp $homePrefixAloja/$userAloja/.profile $homePrefixAloja/$userAloja/.bashrc /root/;
 "
@@ -70,7 +71,7 @@ sudo mkfs.ext4 /dev/md0;
 #parted -s /dev/sdf -- mklabel gpt mkpart primary 0% 100% set 1 raid on
 
     logger "INFO: Updating /etc/fstab template"
-    vm_update_template "/dev/md0	/scratch/attached/1	ext4	defaults	0	0" "secured_file"
+    vm_update_template "/dev/md/minerva-101:0	/scratch/attached/1	ext4	defaults	0	0" "secured_file"
 
     logger "INFO: remounting disks according to fstab"
     vm_execute "
@@ -94,7 +95,18 @@ sudo chown -R pristine: /scratch/attached/1;
 }
 
 vm_final_bootstrap() {
-  #logger "INFO: Creating RAID0 on 6 disks"
-  #vm_create_RAID0
-  :
+
+  logger "INFO: removing security packages and configs from Ubuntu 14.04"
+  vm_execute "
+sudo service apparmor stop
+sudo update-rc.d -f apparmor remove
+sudo apt-get purge -y apparmor apparmor-utils -y
+sudo ufw disable;
+"
+
+  logger "INFO: making sure minerva-100 config is up to date"
+  vm_execute "
+sudo apt-get -y purge hadoop
+"
+
 }
