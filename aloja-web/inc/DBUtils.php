@@ -62,9 +62,9 @@ class DBUtils
 
         //check for cache first
         if ($use_cache &&
-                file_exists($file_path) &&
-                ($rows = file_get_contents($file_path)) &&
-                ($rows = unserialize(gzuncompress($rows)))
+            file_exists($file_path) &&
+            ($rows = file_get_contents($file_path)) &&
+            ($rows = unserialize(gzuncompress($rows)))
         ) {
             $this->container['log']->addDebug('CACHED: '.$sql);
         } else {
