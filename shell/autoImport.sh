@@ -12,7 +12,8 @@ while true ; do
 
   logger "\nImporting jobs\n\n"
   cd "$IMPORT_DIR"
-  #bash $CUR_DIR/aloja-import2db.sh
+  bash $CUR_DIR/aloja-import2db.sh "ONLY_META_DATA"
+  bash $CUR_DIR/aloja-import2db.sh
 
   logger "\nRestarting MySQL\n\n"
   sudo /etc/init.d/mysql restart
@@ -21,7 +22,7 @@ while true ; do
 
   cd /var/www/;
   sudo git reset --hard HEAD;
-  sudo git pull origin prod;
+  sudo git pull origin master;
   sudo rm -rf /var/www/aloja-web/cache/{query,twig}/* /tmp/CACHE_* /tmp/twig/*;
   sudo /etc/init.d/varnish restart;
   sudo service php5-fpm restart;
