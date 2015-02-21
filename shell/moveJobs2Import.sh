@@ -9,7 +9,7 @@ fi
 
 #$1 folder to look
 folder_already_DONE() {
-  if [ "$(ls -l $DONE_DIR/$1 2> /dev/null)" ] || [ "$(ls -l $FAIL_DIR/$1 2> /dev/null)" ]  ; then
+  if [ "$(ls -l $DONE_DIR/$1 2> /dev/null)" ] || [ "$(ls -l $FAIL_DIR/$1 2> /dev/null)" ] || [ "$(ls -l /scratch/attached/1/DONE/$1 2> /dev/null)" ]  || [ "$(ls -l /scratch/attached/3/DONE/$1 2> /dev/null)" ] || [ "$(ls -l /scratch/attached/4/DONE/$1 2> /dev/null)" ]  ; then
     logger "Found $1"
     return 0
   else
@@ -19,7 +19,7 @@ folder_already_DONE() {
 }
 
 #main loop
-logger "Starting..."
+logger "Starting... $SHARE_DIR/jobs_*"
 
 for jobs_folder in $SHARE_DIR/jobs_* ; do
 
